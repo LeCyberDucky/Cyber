@@ -237,7 +237,7 @@ state = initial_state
 print('\n---Start simulation---')
 
 while True:
-    if state == "FINISH":
+    if state == "DONE":
         break
     for transition in fsmd[state]:
         if evaluate_condition(transition["condition"]):
