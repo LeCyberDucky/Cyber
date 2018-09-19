@@ -1,16 +1,14 @@
-# Helper functions
+#Helper functions
 import sys
 import xmltodict
 
-# Function: Get inputs
-
-
+#Function: Get inputs
 def get_inputs(fsmd_des):
     inputs = {}
 
     if(fsmd_des['fsmddescription']['inputlist'] is None):
         inputs = {}
-        # No elements
+        #No elements
     else:
         if type(fsmd_des['fsmddescription']['inputlist']['input']) is str:
             # One element
@@ -22,15 +20,13 @@ def get_inputs(fsmd_des):
 
     return inputs
 
-# Function: Get variables
-
-
+#Function: Get variables
 def get_variables(fsmd_des):
     variables = {}
 
     if(fsmd_des['fsmddescription']['variablelist'] is None):
         variables = {}
-        # No elements
+        #No elements
     else:
         if type(fsmd_des['fsmddescription']['variablelist']['variable']) is str:
             # One element
@@ -42,21 +38,19 @@ def get_variables(fsmd_des):
 
     return variables
 
-# Function: Get operations
-
-
+#Function: Get operations
 def get_operations(fsmd_des):
     operations = {}
 
     if(fsmd_des['fsmddescription']['operationlist'] is None):
         operations = {}
-        # No elements
+        #No elements
     else:
         for operation in fsmd_des['fsmddescription']['operationlist']['operation']:
             if type(operation) is str:
                 # Only one element
-                operations[fsmd_des['fsmddescription']['operationlist']['operation']['name']
-                           ] = fsmd_des['fsmddescription']['operationlist']['operation']['expression']
+                operations[fsmd_des['fsmddescription']['operationlist']['operation']['name']] = \
+                    fsmd_des['fsmddescription']['operationlist']['operation']['expression']
                 break
             else:
                 # More than 1 element
@@ -64,31 +58,26 @@ def get_operations(fsmd_des):
 
     return operations
 
-# Function: Get conditions
-
-
+#Function: Get conditions
 def get_conditions(fsmd_des):
     conditions = {}
 
     if(fsmd_des['fsmddescription']['conditionlist'] is None):
         conditions = {}
-        # No elements
+        #No elements
     else:
         for condition in fsmd_des['fsmddescription']['conditionlist']['condition']:
             if type(condition) is str:
-                # Only one element
-                conditions[fsmd_des['fsmddescription']['conditionlist']['condition']['name']
-                           ] = fsmd_des['fsmddescription']['conditionlist']['condition']['expression']
+                #Only one element
+                conditions[fsmd_des['fsmddescription']['conditionlist']['condition']['name']] = fsmd_des['fsmddescription']['conditionlist']['condition']['expression']
                 break
             else:
-                # More than 1 element
+                #More than 1 element
                 conditions[condition['name']] = condition['expression']
 
     return conditions
 
-# Function: Initialize FSMD
-
-
+#Function: Initialize FSMD
 def get_FSMD(states, fsmd_des):
     fsmd = {}
 
@@ -96,16 +85,16 @@ def get_FSMD(states, fsmd_des):
         fsmd[state] = []
         for transition in fsmd_des['fsmddescription']['fsmd'][state]['transition']:
             if type(transition) is str:
-                # Only one element
+                #Only one element
                 fsmd[state].append({'condition': fsmd_des['fsmddescription']['fsmd'][state]['transition']['condition'],
                                     'instruction': fsmd_des['fsmddescription']['fsmd'][state]['transition']['instruction'],
                                     'nextstate': fsmd_des['fsmddescription']['fsmd'][state]['transition']['nextstate']})
                 break
             else:
-                # More than 1 element
-                fsmd[state].append({'condition': transition['condition'],
-                                    'instruction': transition['instruction'],
-                                    'nextstate': transition['nextstate']})
+                #More than 1 element
+                fsmd[state].append({'condition' : transition['condition'],
+                                    'instruction' : transition['instruction'],
+                                    'nextstate' : transition['nextstate']})
 
     return fsmd
 
@@ -115,7 +104,7 @@ def get_FSMD(states, fsmd_des):
 # This function executes a Python compatible operation passed as string
 # on the operands stored in the dictionary 'inputs'
 #
-def execute_setinput(operation):
+def execute_setinput(operation, inputs):
     operation_clean = operation.replace(' ', '')
     operation_split = operation_clean.split('=')
     target = operation_split[0]
@@ -129,12 +118,12 @@ def execute_setinput(operation):
 # This function executes a Python compatible operation passed as string
 # on the operands stored in the dictionaries 'variables' and 'inputs'
 #
-def execute_operation(operation):
-    operation_clean = operation.replace(' ', '')
+def execute_operation(operation, fsmdConf):
+    operation_clean = fsmdConf['operations'][operation].replace(' ', '')
     operation_split = operation_clean.split('=')
     target = operation_split[0]
     expression = operation_split[1]
-    variables[target] = eval(expression, {'__builtins__': None}, merge_dicts(variables, inputs))
+    fsmdConf['variables'][target] = eval(expression, {'__builtins__': None}, merge_dicts(fsmdConf['variables'], fsmdConf['inputs']))
     return
 
 
@@ -143,12 +132,12 @@ def execute_operation(operation):
 # This function executes a list of operations passed as string and spaced by
 # a single space using the expression defined in the dictionary 'operations'
 #
-def execute_instruction(instruction):
+def execute_instruction(instruction, fsmdConf):
     if instruction == 'NOP' or instruction == 'nop':
         return
     instruction_split = instruction.split(' ')
     for operation in instruction_split:
-        execute_operation(operations[operation])
+        execute_operation(operation, fsmdConf)
     return
 
 
@@ -159,16 +148,16 @@ def execute_instruction(instruction):
 # and using the operands stored in the dictionaries 'variables' and 'inputs
 # It returns True or False
 #
-def evaluate_condition(condition):
-    if condition == 'True' or condition == 'true' or condition == 1:
+def evaluate_condition(condition, fsmdConf):
+    if condition == 'True' or condition =='true' or condition == 1:
         return True
-    if condition == 'False' or condition == 'false' or condition == 0:
+    if condition == 'False' or condition =='false' or condition == 0:
         return False
     condition_explicit = condition
-    for element in conditions:
-        condition_explicit = condition_explicit.replace(element, conditions[element])
+    for element in fsmdConf['conditions']:
+        condition_explicit = condition_explicit.replace(element, fsmdConf['conditions'][element])
     #print('----' + condition_explicit)
-    return eval(condition_explicit, {'__builtins__': None}, merge_dicts(variables, inputs))
+    return eval(condition_explicit, {'__builtins__': None}, merge_dicts(fsmdConf['variables'], fsmdConf['inputs']))
 
 
 #
@@ -182,37 +171,33 @@ def merge_dicts(*dict_args):
     return result
 
 
-'''
 #Function: updateFromStimuli
-def updateFromStimuli():
+def updateFromStimuli(fsmdConf, fsmd_stim, cycle):
     try:
         if (not(fsmd_stim['fsmdstimulus']['setinput'] is None)):
             for setinput in fsmd_stim['fsmdstimulus']['setinput']:
                 if type(setinput) is str:
-                    # Only one element
+                    #Only one element
                     if int(fsmd_stim['fsmdstimulus']['setinput']['cycle']) == cycle:
-                        execute_setinput(fsmd_stim['fsmdstimulus']['setinput']['expression'])
+                        execute_setinput(fsmd_stim['fsmdstimulus']['setinput']['expression'], fsmdConf['inputs'])
                     break
                 else:
-                    # More than 1 element
+                    #More than 1 element
                     if int(setinput['cycle']) == cycle:
-                        execute_setinput(setinput['expression'])
+                        execute_setinput(setinput['expression'], fsmdConf['inputs'])
     except:
         pass
 
 #Function: checkEndstate
-
-
-def checkEndstate():
+def checkEndstate(fsmdConf, fsmd_stim):
     try:
         if (not(fsmd_stim['fsmdstimulus']['endstate'] is None)):
             if state == fsmd_stim['fsmdstimulus']['endstate']:
                 return True
                 #print('End-state reached.')
                 repeat = False
-            else
+            else:
                 return False
     except:
         return False
         pass
-'''
